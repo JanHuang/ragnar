@@ -9,20 +9,10 @@
 
 /**
  * @param int $level
+ * @return \FastD\Ragnar\Ragnar
  */
-function ragnar($level = \Adinf\RagnarSDK\RagnarConst::LOG_TYPE_INFO)
+function ragnar($level = \Adinf\RagnarSDK\RagnarConst::LOG_TYPE_ERROR)
 {
-
+    return \FastD\Ragnar\Ragnar::create($level);
 }
-
-function info($file, $line, $tag, $msg)
-{
-    \Adinf\RagnarSDK\RagnarSDK::RecordLog(\Adinf\RagnarSDK\RagnarConst::LOG_TYPE_INFO, $file, $line, $tag, $msg);
-}
-
-function debug($file, $line, $tag, $msg)
-{
-    \Adinf\RagnarSDK\RagnarSDK::RecordLog(\Adinf\RagnarSDK\RagnarConst::LOG_TYPE_DEBUG, $file, $line, $tag, $msg);
-}
-
 
