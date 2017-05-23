@@ -20,6 +20,11 @@ use Adinf\RagnarSDK\RagnarSDK;
 class Ragnar
 {
     /**
+     * @var null
+     */
+    protected $startAt = null;
+
+    /**
      * @var Ragnar
      */
     protected static $ragnar = null;
@@ -78,9 +83,9 @@ class Ragnar
      * @param $msg
      * @return $this
      */
-    function info($file, $line, $tag, $msg)
+    public function info($file, $line, $tag, $msg)
     {
-        RagnarSDK::RecordLog(RagnarConst::LOG_TYPE_INFO, $file, $line, $tag, $msg);
+        $this->log(RagnarConst::LOG_TYPE_INFO, $file, $line, $tag, $msg);
 
         return $this;
     }
@@ -92,9 +97,75 @@ class Ragnar
      * @param $msg
      * @return $this
      */
-    function debug($file, $line, $tag, $msg)
+    public function debug($file, $line, $tag, $msg)
     {
-        RagnarSDK::RecordLog(RagnarConst::LOG_TYPE_DEBUG, $file, $line, $tag, $msg);
+        $this->log(RagnarConst::LOG_TYPE_DEBUG, $file, $line, $tag, $msg);
+
+        return $this;
+    }
+
+    /**
+     * @param $file
+     * @param $line
+     * @param $tag
+     * @param $msg
+     * @return $this
+     */
+    public function error($file, $line, $tag, $msg)
+    {
+        $this->log(RagnarConst::LOG_TYPE_ERROR, $file, $line, $tag, $msg);
+
+        return $this;
+    }
+
+    /**
+     * @param $file
+     * @param $line
+     * @param $tag
+     * @param $msg
+     * @return $this
+     */
+    public function performance($file, $line, $tag, $msg)
+    {
+        $this->log(RagnarConst::LOG_TYPE_PERFORMENCE, $file, $line, $tag, $msg);
+
+        return $this;
+    }
+
+    /**
+     * @param $file
+     * @param $line
+     * @param $tag
+     * @param $msg
+     * @return $this
+     */
+    public function notice($file, $line, $tag, $msg)
+    {
+        $this->log(RagnarConst::LOG_TYPE_NOTICE, $file, $line, $tag, $msg);
+
+        return $this;
+    }
+
+    /**
+     * @param $file
+     * @param $line
+     * @param $tag
+     * @return $this
+     */
+    public function start($file, $line, $tag)
+    {
+        $this->startAt = RagnarSDK::digLogStart($file, $line, $tag);
+
+        return $this;
+    }
+
+    /**
+     * @param $tag
+     * @return $this
+     */
+    public function write($tag)
+    {
+        RagnarSDK::digLogEnd($this->startAt, $tag);
 
         return $this;
     }
@@ -102,16 +173,43 @@ class Ragnar
     /**
      * @return string
      */
-    function getTraceId()
+    public function getTraceId()
     {
         return RagnarSDK::getTraceID();
+    }
+
+    /**
+     * @return array
+     */
+    public function getParams()
+    {
+        return RagnarSDK::getChildCallParam();
+    }
+
+    /**
+     * @param callable $callable
+     * @return $this
+     */
+    public function filterCallback(callable $callable)
+    {
+        RagnarSDK::setUrlFilterCallback($callable);
+
+        return $this;
+    }
+
+    /**
+     * @return array
+     */
+    public function getLog()
+    {
+        return RagnarSDK::decodeTraceID($this->getTraceId());
     }
 
     /**
      * @param int $level
      * @return static
      */
-    public static function create ($level = RagnarConst::LOG_TYPE_ERROR)
+    public static function create($level = RagnarConst::LOG_TYPE_ERROR)
     {
         if (null === static::$ragnar) {
             static::$ragnar = new static($level);
