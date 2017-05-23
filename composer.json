@@ -1,0 +1,23 @@
+{
+    "name": "fastd/ragnar",
+    "authors": [
+        {
+            "name": "JanHuang",
+            "email": "bboyjanhuang@gmail.com"
+        }
+    ],
+    "require": {
+        "php": ">=5.6"
+    },
+    "autoload": {
+        "psr-4": {
+            "FastD\\Ragnar\\": "src",
+            "Adinf\\RagnarSDK\\": "src/sdk"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "": "tests"
+        }
+    }
+}
