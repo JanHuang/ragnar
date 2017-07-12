@@ -31,6 +31,8 @@ class Ragnar implements RagnarInterface
 
     protected $rpcId;
 
+    protected $seg = 0;
+
     protected $idc;
 
     protected $ip;
@@ -111,21 +113,30 @@ class Ragnar implements RagnarInterface
         );
     }
 
-    public function digLogEnd()
+    /**
+     * @param $file
+     * @param $line
+     * @param $tag
+     * @param $rpcId
+     */
+    public function digLogEnd($file, $line, $tag, $rpcId)
     {
         $this->logs[] =
             array(
                 "t" => static::LOG_TYPE_PERFORMANCE,
                 "e" => microtime(true),
-                "g" => $config["tag"],
-                "p" => $config["file"],
-                "l" => $config["line"],
+                "g" => $tag,
+                "p" => $file,
+                "l" => $line,
                 "c" => bcsub(microtime(true), $config["start"], 4),
                 "m" => $msg,
                 "r" => $config["rpcid"],
             );
     }
 
+    /**
+     * @return string
+     */
     public function getTraceId()
     {
         if (empty($this->traceId)) {
@@ -154,20 +165,6 @@ class Ragnar implements RagnarInterface
         return $this->traceId;
     }
 
-    public function decodeTraceID($traceid)
-    {
-        $traceid = MidTool::decode($traceid);
-
-        $result = Traceid::decode($traceid);
-        $result["time"] = strtotime("2017-01-01") + $result["time"];
-
-        $ip1 = (int)($result["ip"] / 256);
-        $ip2 = (int)($result["ip"] % 256);
-
-        $result["ip"] = $ip1 . "." . $ip2;
-        return $result;
-    }
-
     /**
      * 获取当前请求的RPCid
      * @return string
@@ -183,7 +180,7 @@ class Ragnar implements RagnarInterface
      */
     public function getChildRPCID()
     {
-        return self::$_rpcid . "." . self::$_seq;
+        return $this->rpcId . "." . $this->seg;
     }
 
     /**
@@ -192,8 +189,8 @@ class Ragnar implements RagnarInterface
      */
     public function getChildNextRPCID()
     {
-        self::$_seq++;
-        return self::$_rpcid . "." . self::$_seq;
+        $this->seg++;
+        return $this->rpcId . "." . $this->seg;
     }
 
     /**
@@ -202,40 +199,24 @@ class Ragnar implements RagnarInterface
      */
     public function getChildCallParam()
     {
-        $headers = array(
-            "X-RAGNAR-RPCID" => self::getChildNextRPCID(),
-            "X-RAGNAR-TRACEID" => self::getTraceID(),
-            "X-RAGNAR-LOGLEVEL" => self::$_log_level,
-        );
-        return $headers;
+        RETURN [
+            "X-RAGNAR-RPCID" => $this->getChildNextRPCID(),
+            "X-RAGNAR-TRACEID" => $this->getTraceID(),
+            "X-RAGNAR-LOGLEVEL" => $this->level,
+        ];
     }
 
     /**
-     * 获取子请求的curl header参数，已经包含了getChildNextRPCID
-     * 通过这个函数获取下一次Curl请求所需的Header值
-     * 如果指定了digstart返回的数组会使用当前rpciid
-     * @param $digpoint array digpoint埋点
+     * @param array $digpoint
      * @return array
      */
-    public function getCurlChildCallParam($digpoint = array())
+    public function getCurlChildCallParam($digpoint = [])
     {
-        //检测是否初始化并且未禁用
-        if (!self::isEnable()) {
-            return array();
-        }
-
-        $headers = array(
-            "X-RAGNAR-TRACEID: " . self::getTraceID(),
-            "X-RAGNAR-LOGLEVEL: " . self::$_log_level,
-        );
-
-        if (isset($digpoint["rpcid"])) {
-            $headers[] = "X-RAGNAR-RPCID: " . $digpoint["rpcid"];
-        } else {
-            $headers[] = "X-RAGNAR-RPCID: " . self::getChildNextRPCID();
-        }
-
-        return $headers;
+        return [
+            "X-RAGNAR-TRACEID" => $this->getTraceId(),
+            "X-RAGNAR-LOGLEVEL" => $this->level,
+            "X-RAGNAR-RPCID" => isset($digpoint["rpcid"]) ? $digpoint["rpcid"] : $this->getChildNextRPCID(),
+        ];
     }
 
     /**
@@ -244,8 +225,8 @@ class Ragnar implements RagnarInterface
     public function getHeaders()
     {
         return [
-            "X-RAGNAR-RPC-ID" => self::getNextId(),
-            "X-RAGNAR-TRACE-ID" => self::getTraceID(),
+            "X-RAGNAR-RPC-ID" => $this->getChildNextRPCID(),
+            "X-RAGNAR-TRACE-ID" => $this->getTraceID(),
             "X-RAGNAR-LOG-LEVEL" => $this->level,
         ];
     }
