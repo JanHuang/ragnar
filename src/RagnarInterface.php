@@ -1,16 +1,17 @@
 <?php
-namespace Adinf\RagnarSDK;
-
 /**
- * Ragnar Const Define
+ * @author    jan huang <bboyjanhuang@gmail.com>
+ * @copyright 2017
+ *
+ * @see      https://www.github.com/janhuang
+ * @see      http://www.fast-d.cn/
  */
 
-class RagnarConst
+namespace FastD\Ragnar;
+
+
+interface RagnarInterface
 {
-    /**
-     * 分级日志 日志级别常量定义
-     */
-    //debug 信息，用于调试信息输出，默认不会输出，当在生产环境在线调试时使用
     const LOG_TYPE_DEBUG = 1;
 
     //trace
@@ -38,6 +39,5 @@ class RagnarConst
     const LOG_TYPE_XHPROF = 8;
 
     //日志类型：耗时性能日志
-    const LOG_TYPE_PERFORMENCE = 9;
-
+    const LOG_TYPE_PERFORMANCE = 9;
 }
