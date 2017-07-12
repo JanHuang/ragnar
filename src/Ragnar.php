@@ -39,6 +39,8 @@ class Ragnar implements RagnarInterface
 
     protected $logs = [];
 
+    protected $headers = [];
+
     /**
      * Ragnar constructor.
      * @param $name
@@ -51,33 +53,35 @@ class Ragnar implements RagnarInterface
         $this->level = $level;
         $this->server = $serverRequest;
 
-        if (($idc = (int)$serverRequest->getHeaderLine('RAGNAR_IDC')) !== "" && $idc >= 0 && $idc <= 3) {
-            $this->idc = $idc;
-        } else {
-            throw new LogicException("Ragnar:RAGNAR_IDC取值 0~3 ，请检查 Nginx 配置选项", 1000);
-        }
+        $this->idc = !$serverRequest->hasHeader('RAGNAR_IDC') ? 0 : (int) $serverRequest->getHeaderLine('RAGNAR_IDC');
+        $this->rpcId = !$serverRequest->hasHeader('HTTP_X_RAGNAR_RPC_ID') ? 0 : (int) $serverRequest->getHeaderLine('HTTP_X_RAGNAR_RPC_ID');
+        $this->ip = !$serverRequest->hasHeader('RAGNAR_IP') ? '127.0.0.1' : (int) $serverRequest->getHeaderLine('RAGNAR_IP');
+        $this->traceId = !$serverRequest->hasHeader('HTTP_X_RAGNAR_TRACE_ID') ? $this->getTraceId() : (int) $serverRequest->getHeaderLine('HTTP_X_RAGNAR_TRACE_ID');
 
         $this->startAt = microtime(true);
-
-        if ( ! empty($serverRequest->getHeaderLine("HTTP_X_RAGNAR_RPC_ID"))) {
-            $this->rpcId = $serverRequest->getHeaderLine("HTTP_X_RAGNAR_RPC_ID");
-        }
-
-        if ( ! empty($serverRequest->getHeaderLine("HTTP_X_RAGNAR_TRACE_ID"))) {
-            $this->traceId = $serverRequest->getHeaderLine("HTTP_X_RAGNAR_TRACE_ID");
-        } else {
-            $this->getTraceID();
-        }
-
-        header("X-RAGNAR-TRACE-ID: ".$this->traceId);
-        header("X-RAGNAR-RPC-ID: ".$this->rpcId);
     }
 
+    /**
+     * @return ServerRequestInterface
+     */
+    public function getServer()
+    {
+        return $this->server;
+    }
+
+    /**
+     * @param $type
+     * @param $file
+     * @param $line
+     * @param $tag
+     * @param $content
+     * @return $this
+     */
     public function log($type, $file, $line, $tag, $content)
     {
         if ($type > $this->level) {
             $this->logs[] = array(
-                "r" => self::getChildRPCID(),
+                "r" => $this->getChildRPCID(),
                 "t" => $type,
                 "e" => microtime(true),
                 "g" => $tag,
@@ -90,13 +94,12 @@ class Ragnar implements RagnarInterface
         return $this;
     }
 
-    public function setMeta($uid, $env, $extra)
-    {
-        self::$_uid = $uid;
-        self::$_env = $env;
-        self::$_extra = json_encode($extra);
-    }
-
+    /**
+     * @param $file
+     * @param $line
+     * @param string $tag
+     * @return array
+     */
     public function digLogStart($file, $line, $tag = '')
     {
         return array(
@@ -104,7 +107,7 @@ class Ragnar implements RagnarInterface
             "line" => $line,
             "tag" => $tag,
             "start" => microtime(true),
-            "rpc_id" => $this->getNextId(),
+            "rpc_id" => $this->getChildNextRPCID(),
         );
     }
 
@@ -235,6 +238,9 @@ class Ragnar implements RagnarInterface
         return $headers;
     }
 
+    /**
+     * @return array
+     */
     public function getHeaders()
     {
         return [
@@ -242,5 +248,109 @@ class Ragnar implements RagnarInterface
             "X-RAGNAR-TRACE-ID" => self::getTraceID(),
             "X-RAGNAR-LOG-LEVEL" => $this->level,
         ];
+    }
+
+    /**
+     * @return string
+     */
+    public function getLogPath()
+    {
+        return static::LOG_PTAH . "/" . trim($this->name) . "/" . date("Ym");
+    }
+
+    /**
+     * @param bool $output
+     * @return null|string
+     */
+    public function dump($output = true)
+    {
+        $log = '';
+        foreach ($this->logs as $k => $v) {
+            $msg = json_encode($v["m"]);
+            if (strlen($msg) > 20480) {
+                $this->logs[$k]["m"] = substr($msg, 0, 20480);
+            }
+        }
+
+        if (count($this->logs) > 30) {
+            $list = array_chunk($this->logs, 30);
+
+            $result = array(
+                array(
+                    "key" => $this->getTraceID(),
+                    "rpc_id" => $this->getCurrentRPCID(),
+                    "val" => "",
+                    "timestamp" => time(),
+                ),
+            );
+
+            foreach ($list as $item) {
+                $result[0]["val"] = $item;
+                $log = json_encode($result);
+            }
+        } else {
+            $result = array(
+                array(
+                    "key" => $this->getTraceID(),
+                    "rpc_id" => $this->getCurrentRPCID(),
+                    "val" => $this->logs,
+                    "timestamp" => time(),
+                ),
+            );
+
+            $log = json_encode($result);
+        }
+
+        if (!$output) {
+            return $log;
+        }
+
+        echo $log;
+        return null;
+    }
+
+    /**
+     * @return $this
+     */
+    public function clean()
+    {
+        $this->logs = [];
+
+        return $this;
+    }
+
+    /**
+     * @param $path
+     * @return bool
+     */
+    protected function targetDir($path)
+    {
+        if (!is_dir($path)) {
+            return mkdir($path, 0777, true);
+        }
+
+        return true;
+    }
+
+    /**
+     * @return string
+     */
+    public function getLogFile()
+    {
+        return $this->getLogPath() . '/' . date("d") . "-" . getmypid() . ".log";
+    }
+
+    /**
+     * @return int
+     */
+    public function persist()
+    {
+        $log = $this->dump(false);
+
+        $path = $this->getLogPath();
+
+        $this->targetDir($path);
+
+        return file_put_contents($this->getLogFile(), trim($log) . "\n", FILE_APPEND);
     }
 }

@@ -12,6 +12,8 @@ namespace FastD\Ragnar;
 
 interface RagnarInterface
 {
+    const LOG_PTAH = '/tmp';
+
     const LOG_TYPE_DEBUG = 1;
 
     //trace
