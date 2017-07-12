@@ -114,24 +114,25 @@ class Ragnar implements RagnarInterface
     }
 
     /**
-     * @param $file
-     * @param $line
-     * @param $tag
-     * @param $rpcId
+     * @param $startPoint
+     * @param string $msg
+     * @return $this
      */
-    public function digLogEnd($file, $line, $tag, $rpcId)
+    public function digLogEnd($startPoint, $msg = '')
     {
         $this->logs[] =
             array(
                 "t" => static::LOG_TYPE_PERFORMANCE,
                 "e" => microtime(true),
-                "g" => $tag,
-                "p" => $file,
-                "l" => $line,
-                "c" => bcsub(microtime(true), $config["start"], 4),
+                "g" => $startPoint["tag"],
+                "p" => $startPoint["file"],
+                "l" => $startPoint["line"],
+                "c" => bcsub(microtime(true), $startPoint["start"], 4),
                 "m" => $msg,
-                "r" => $config["rpcid"],
+                "r" => $startPoint["rpcid"],
             );
+
+        return $this;
     }
 
     /**
@@ -200,22 +201,22 @@ class Ragnar implements RagnarInterface
     public function getChildCallParam()
     {
         RETURN [
-            "X-RAGNAR-RPCID" => $this->getChildNextRPCID(),
-            "X-RAGNAR-TRACEID" => $this->getTraceID(),
-            "X-RAGNAR-LOGLEVEL" => $this->level,
+            "X-RAGNAR-RPC-ID" => $this->getChildNextRPCID(),
+            "X-RAGNAR-TRACE-ID" => $this->getTraceID(),
+            "X-RAGNAR-LOG-LEVEL" => $this->level,
         ];
     }
 
     /**
-     * @param array $digpoint
+     * @param array $point
      * @return array
      */
-    public function getCurlChildCallParam($digpoint = [])
+    public function getCurlChildCallParam($point = [])
     {
         return [
-            "X-RAGNAR-TRACEID" => $this->getTraceId(),
-            "X-RAGNAR-LOGLEVEL" => $this->level,
-            "X-RAGNAR-RPCID" => isset($digpoint["rpcid"]) ? $digpoint["rpcid"] : $this->getChildNextRPCID(),
+            "X-RAGNAR-TRACE-ID" => $this->getTraceId(),
+            "X-RAGNAR-LOG-LEVEL" => $this->level,
+            "X-RAGNAR-RPC-ID" => isset($point["rpcid"]) ? $point["rpcid"] : $this->getChildNextRPCID(),
         ];
     }
 
@@ -236,7 +237,7 @@ class Ragnar implements RagnarInterface
      */
     public function getLogPath()
     {
-        return static::LOG_PTAH . "/" . trim($this->name) . "/" . date("Ym");
+        return static::LOG_PTAH . "/" . trim($this->name . '_log') . "/" . date("Ym");
     }
 
     /**
@@ -306,11 +307,7 @@ class Ragnar implements RagnarInterface
      */
     protected function targetDir($path)
     {
-        if (!is_dir($path)) {
-            return mkdir($path, 0777, true);
-        }
-
-        return true;
+        return !is_dir($path) ? mkdir($path, 0777, true) : true;
     }
 
     /**
