@@ -51,7 +51,7 @@ class RagnarTest extends PHPUnit_Framework_TestCase
     {
         $_SERVER = $this->dataServerFromGlobals();
         $server = ServerRequest::createServerRequestFromGlobals();
-        return new Ragnar('test', $server);
+        return new Ragnar('ragnar_dev', $server);
     }
 
     public function testInit()
@@ -63,20 +63,29 @@ class RagnarTest extends PHPUnit_Framework_TestCase
     {
         $apm = $this->createRagnar();
         $apm->log(Ragnar::LOG_TYPE_INFO, __FILE__, __LINE__, ['query' => 'test'], []);
-        $apm->dump();
+//        $apm->dump();
     }
 
     public function testPersist()
     {
-        $apm = $this->createRagnar();
-        $apm->log(Ragnar::LOG_TYPE_INFO, __FILE__, __LINE__, ['query' => 'test'], []);
-        $apm->persist();
-        echo $apm->getLogFile();
+        $ragnar = $this->createRagnar();
+        $ragnar->log(Ragnar::LOG_TYPE_INFO, __FILE__, __LINE__, "module1_msg", "i wish i can fly!");
+        $ragnar->log(Ragnar::LOG_TYPE_DEBUG, __FILE__, __LINE__, "module2_msg", "i wish i'm rich!");
+        $digpooint = $ragnar->digLogStart(__FILE__, __LINE__, "test");
+        $ragnar->digLogEnd($digpooint, "happy");
+        echo $ragnar->getTraceId() . PHP_EOL;
+        $ragnar->persist();
     }
 
     public function testLog()
     {
         $apm = $this->createRagnar();
         $apm->log(Ragnar::LOG_TYPE_INFO, __FILE__, __LINE__, ['query' => 'test'], []);
+    }
+
+    public function testFlow()
+    {
+        $apm = $this->createRagnar();
+        $apm->flow([call,]);
     }
 }

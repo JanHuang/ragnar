@@ -11,6 +11,7 @@ namespace FastD\Ragnar;
 
 use Adinf\RagnarSDK\MidTool;
 use Adinf\RagnarSDK\Traceid;
+use Adinf\RagnarSDK\Util;
 use LogicException;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -49,17 +50,23 @@ class Ragnar implements RagnarInterface
      * @param int $level
      * @param ServerRequestInterface $serverRequest
      */
-    public function __construct($name, ServerRequestInterface $serverRequest, $level = RagnarInterface::LOG_TYPE_INFO)
+    public function __construct($name, ServerRequestInterface $serverRequest = null, $level = RagnarInterface::LOG_TYPE_INFO)
     {
         $this->name = $name;
         $this->level = $level;
-        $this->server = $serverRequest;
 
-        $this->idc = !$serverRequest->hasHeader('RAGNAR_IDC') ? 0 : (int) $serverRequest->getHeaderLine('RAGNAR_IDC');
-        $this->rpcId = !$serverRequest->hasHeader('HTTP_X_RAGNAR_RPC_ID') ? 0 : (int) $serverRequest->getHeaderLine('HTTP_X_RAGNAR_RPC_ID');
-        $this->ip = !$serverRequest->hasHeader('RAGNAR_IP') ? '127.0.0.1' : (int) $serverRequest->getHeaderLine('RAGNAR_IP');
-        $this->traceId = !$serverRequest->hasHeader('HTTP_X_RAGNAR_TRACE_ID') ? $this->getTraceId() : (int) $serverRequest->getHeaderLine('HTTP_X_RAGNAR_TRACE_ID');
-
+        if (null !== $serverRequest) {
+            $this->server = $serverRequest;
+            $this->idc = !$serverRequest->hasHeader('RAGNAR_IDC') ? 0 : (int) $serverRequest->getHeaderLine('RAGNAR_IDC');
+            $this->rpcId = !$serverRequest->hasHeader('HTTP_X_RAGNAR_RPC_ID') ? 0 : (int) $serverRequest->getHeaderLine('HTTP_X_RAGNAR_RPC_ID');
+            $this->ip = !$serverRequest->hasHeader('RAGNAR_IP') ? '127.0.0.1' : (int) $serverRequest->getHeaderLine('RAGNAR_IP');
+            $this->traceId = !$serverRequest->hasHeader('HTTP_X_RAGNAR_TRACE_ID') ? $this->getTraceId() : (int) $serverRequest->getHeaderLine('HTTP_X_RAGNAR_TRACE_ID');
+        } else {
+            $this->idc = 0;
+            $this->rpcId = 0;
+            $this->ip = '127.0.0.1';
+            $this->traceId = $this->getTraceId();
+        }
         $this->startAt = microtime(true);
     }
 
@@ -81,8 +88,8 @@ class Ragnar implements RagnarInterface
      */
     public function log($type, $file, $line, $tag, $content)
     {
-        if ($type > $this->level) {
-            $this->logs[] = array(
+        if ($type >= $this->level) {
+            $this->logs[] = [
                 "r" => $this->getChildRPCID(),
                 "t" => $type,
                 "e" => microtime(true),
@@ -90,9 +97,21 @@ class Ragnar implements RagnarInterface
                 "p" => $file,
                 "l" => $line,
                 "m" => $content,
-            );
+            ];
         }
 
+        return $this;
+    }
+
+    /**
+     * @param $callback
+     * @return $this
+     */
+    public function flow($callback)
+    {
+        $startPoint = $this->digLogStart(__FILE__, __LINE__, 'flow');
+        call_user_func_array($callback, []);
+        $this->digLogEnd($startPoint, 'flow_end');
         return $this;
     }
 
@@ -104,13 +123,13 @@ class Ragnar implements RagnarInterface
      */
     public function digLogStart($file, $line, $tag = '')
     {
-        return array(
+        return [
             "file" => $file,
             "line" => $line,
             "tag" => $tag,
             "start" => microtime(true),
-            "rpc_id" => $this->getChildNextRPCID(),
-        );
+            "rpcid" => $this->getChildNextRPCID(),
+        ];
     }
 
     /**
@@ -121,16 +140,16 @@ class Ragnar implements RagnarInterface
     public function digLogEnd($startPoint, $msg = '')
     {
         $this->logs[] =
-            array(
+            [
                 "t" => static::LOG_TYPE_PERFORMANCE,
                 "e" => microtime(true),
                 "g" => $startPoint["tag"],
                 "p" => $startPoint["file"],
                 "l" => $startPoint["line"],
                 "c" => bcsub(microtime(true), $startPoint["start"], 4),
-                "m" => $msg,
+                "m" => is_array($msg) ? $msg : [$msg],
                 "r" => $startPoint["rpcid"],
-            );
+            ];
 
         return $this;
     }
@@ -200,10 +219,10 @@ class Ragnar implements RagnarInterface
      */
     public function getChildCallParam()
     {
-        RETURN [
-            "X-RAGNAR-RPC-ID" => $this->getChildNextRPCID(),
-            "X-RAGNAR-TRACE-ID" => $this->getTraceID(),
-            "X-RAGNAR-LOG-LEVEL" => $this->level,
+        return [
+            "X-RAGNAR-RPCID" => $this->getChildNextRPCID(),
+            "X-RAGNAR-TRACEID" => $this->getTraceID(),
+            "X-RAGNAR-LOGLEVEL" => $this->level,
         ];
     }
 
@@ -214,9 +233,9 @@ class Ragnar implements RagnarInterface
     public function getCurlChildCallParam($point = [])
     {
         return [
-            "X-RAGNAR-TRACE-ID" => $this->getTraceId(),
-            "X-RAGNAR-LOG-LEVEL" => $this->level,
-            "X-RAGNAR-RPC-ID" => isset($point["rpcid"]) ? $point["rpcid"] : $this->getChildNextRPCID(),
+            "X-RAGNAR-TRACEID" => $this->getTraceId(),
+            "X-RAGNAR-LOGLEVEL" => $this->level,
+            "X-RAGNAR-RPCID" => isset($point["rpcid"]) ? $point["rpcid"] : $this->getChildNextRPCID(),
         ];
     }
 
@@ -226,9 +245,9 @@ class Ragnar implements RagnarInterface
     public function getHeaders()
     {
         return [
-            "X-RAGNAR-RPC-ID" => $this->getChildNextRPCID(),
-            "X-RAGNAR-TRACE-ID" => $this->getTraceID(),
-            "X-RAGNAR-LOG-LEVEL" => $this->level,
+            "X-RAGNAR-RPCID" => $this->getChildNextRPCID(),
+            "X-RAGNAR-TRACEID" => $this->getTraceID(),
+            "X-RAGNAR-LOGLEVEL" => $this->level,
         ];
     }
 
@@ -257,28 +276,28 @@ class Ragnar implements RagnarInterface
         if (count($this->logs) > 30) {
             $list = array_chunk($this->logs, 30);
 
-            $result = array(
-                array(
+            $result = [
+                [
                     "key" => $this->getTraceID(),
-                    "rpc_id" => $this->getCurrentRPCID(),
+                    "rpcid" => $this->getCurrentRPCID(),
                     "val" => "",
                     "timestamp" => time(),
-                ),
-            );
+                ],
+            ];
 
             foreach ($list as $item) {
                 $result[0]["val"] = $item;
                 $log = json_encode($result);
             }
         } else {
-            $result = array(
-                array(
+            $result = [
+                [
                     "key" => $this->getTraceID(),
-                    "rpc_id" => $this->getCurrentRPCID(),
+                    "rpcid" => $this->getCurrentRPCID(),
                     "val" => $this->logs,
                     "timestamp" => time(),
-                ),
-            );
+                ],
+            ];
 
             $log = json_encode($result);
         }
@@ -287,7 +306,7 @@ class Ragnar implements RagnarInterface
             return $log;
         }
 
-        echo $log;
+        echo json_encode(json_decode($log, true), JSON_PRETTY_PRINT);
         return null;
     }
 
