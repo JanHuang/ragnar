@@ -11,8 +11,6 @@ namespace FastD\Ragnar;
 
 use Adinf\RagnarSDK\MidTool;
 use Adinf\RagnarSDK\Traceid;
-use Adinf\RagnarSDK\Util;
-use LogicException;
 use Psr\Http\Message\ServerRequestInterface;
 
 
@@ -76,18 +74,28 @@ class Ragnar implements RagnarInterface
      * @var array
      */
     protected $headers = [];
-
+    
     /**
      * Ragnar constructor.
      * @param $name
      * @param int $level
-     * @param ServerRequestInterface $serverRequest
+     * @param ServerRequestInterface|null $serverRequest
      */
-    public function __construct($name, ServerRequestInterface $serverRequest = null, $level = RagnarInterface::LOG_TYPE_INFO)
+    public function __construct($name, $level = RagnarInterface::LOG_TYPE_INFO, ServerRequestInterface $serverRequest = null)
     {
         $this->name = $name;
         $this->level = $level;
 
+        $this->withServer($serverRequest);
+
+        $this->startAt = microtime(true);
+    }
+
+    /**
+     * @param ServerRequestInterface $serverRequest
+     */
+    public function withServer(ServerRequestInterface $serverRequest = null)
+    {
         if (null !== $serverRequest) {
             $this->server = $serverRequest;
             $this->idc = !$serverRequest->hasHeader('RAGNAR_IDC') ? 0 : (int) $serverRequest->getHeaderLine('RAGNAR_IDC');
@@ -100,7 +108,6 @@ class Ragnar implements RagnarInterface
             $this->ip = '127.0.0.1';
             $this->traceId = $this->getTraceId();
         }
-        $this->startAt = microtime(true);
     }
 
     /**
