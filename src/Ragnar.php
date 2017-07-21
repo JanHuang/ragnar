@@ -74,7 +74,12 @@ class Ragnar implements RagnarInterface
      * @var array
      */
     protected $headers = [];
-    
+
+    /**
+     * @var array
+     */
+    protected $points = [];
+
     /**
      * Ragnar constructor.
      * @param $name
@@ -165,22 +170,25 @@ class Ragnar implements RagnarInterface
      */
     public function digLogStart($file, $line, $tag = '')
     {
-        return [
+        $point =  [
             "file" => $file,
             "line" => $line,
             "tag" => $tag,
             "start" => microtime(true),
             "rpcid" => $this->getChildNextRPCID(),
         ];
+        $this->points[] = $point;
+        return $point;
     }
 
     /**
-     * @param $startPoint
      * @param string $msg
      * @return $this
      */
-    public function digLogEnd($startPoint, $msg = '')
+    public function digLogEnd($msg = '')
     {
+        $startPoint = array_pop($this->points);
+
         $this->logs[] =
             [
                 "t" => static::LOG_TYPE_PERFORMANCE,
