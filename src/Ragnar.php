@@ -159,9 +159,9 @@ class Ragnar implements RagnarInterface
      */
     public function flow($tag, $callback, array $params = [])
     {
-        $startPoint = $this->digLogStart(__FILE__, __LINE__, $tag);
+        $this->digLogStart(__FILE__, __LINE__, $tag);
         call_user_func_array($callback, $params);
-        $this->digLogEnd($startPoint, 'flow_end');
+        $this->digLogEnd('flow_end');
         return $this;
     }
 
