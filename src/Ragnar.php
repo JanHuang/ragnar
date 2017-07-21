@@ -98,6 +98,7 @@ class Ragnar implements RagnarInterface
 
     /**
      * @param ServerRequestInterface $serverRequest
+     * @return Ragnar
      */
     public function withServer(ServerRequestInterface $serverRequest = null)
     {
@@ -113,6 +114,8 @@ class Ragnar implements RagnarInterface
             $this->ip = '127.0.0.1';
             $this->traceId = $this->getTraceId();
         }
+
+        return $this;
     }
 
     /**
