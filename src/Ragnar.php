@@ -22,26 +22,59 @@ use Psr\Http\Message\ServerRequestInterface;
  */
 class Ragnar implements RagnarInterface
 {
+    /**
+     * @var string
+     */
     protected $name;
 
+    /**
+     * @var int
+     */
     protected $level;
 
+    /**
+     * @var ServerRequestInterface
+     */
     protected $server;
 
+    /**
+     * @var string
+     */
     protected $traceId;
 
+    /**
+     * @var int
+     */
     protected $rpcId;
 
+    /**
+     * @var int
+     */
     protected $seg = 0;
 
+    /**
+     * @var int
+     */
     protected $idc;
 
+    /**
+     * @var string
+     */
     protected $ip;
 
+    /**
+     * @var mixed
+     */
     protected $startAt;
 
+    /**
+     * @var array
+     */
     protected $logs = [];
 
+    /**
+     * @var array
+     */
     protected $headers = [];
 
     /**
@@ -104,13 +137,15 @@ class Ragnar implements RagnarInterface
     }
 
     /**
+     * @param $tag
      * @param $callback
+     * @param array $params
      * @return $this
      */
-    public function flow($callback)
+    public function flow($tag, $callback, array $params = [])
     {
-        $startPoint = $this->digLogStart(__FILE__, __LINE__, 'flow');
-        call_user_func_array($callback, []);
+        $startPoint = $this->digLogStart(__FILE__, __LINE__, $tag);
+        call_user_func_array($callback, $params);
         $this->digLogEnd($startPoint, 'flow_end');
         return $this;
     }

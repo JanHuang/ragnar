@@ -34,12 +34,6 @@ interface RagnarInterface
     //异常 信息
     const LOG_TYPE_EXCEPTION = 7;
 
-    /**
-     * 日志特殊类型
-     */
-    //日志类型：xhprof性能日志
-    const LOG_TYPE_XHPROF = 8;
-
     //日志类型：耗时性能日志
     const LOG_TYPE_PERFORMANCE = 9;
 }

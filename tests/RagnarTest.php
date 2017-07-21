@@ -86,6 +86,37 @@ class RagnarTest extends PHPUnit_Framework_TestCase
     public function testFlow()
     {
         $apm = $this->createRagnar();
-        $apm->flow([call,]);
+
+    }
+
+    public function testCURL()
+    {
+        $apm = $this->createRagnar();
+        $startPoint = $apm->digLogStart(__FILE__, __LINE__, 'curl');
+        $next = $apm->getCurlChildCallParam($startPoint);
+        $request = new \FastD\Http\Request('GET', 'http://baidu.com');
+        $response = $request->send([], $next);
+        $apm->digLogEnd($startPoint, [
+            'header' => $response->getHeaders()
+        ]);
+        $apm->persist();
+        echo $response->getStatusCode().PHP_EOL;
+        echo $apm->getTraceId().PHP_EOL;
+    }
+
+    public function testMySQL()
+    {
+        $apm = $this->createRagnar();
+        $start = $apm->digLogStart(__FILE__, __LINE__, 'mysql');
+        $apm->digLogEnd($start, [
+            'sql' => 'select * from test',
+            'data' => [
+                'name' => 'test',
+            ],
+            'op' => '',
+            'fun' => 'query'
+        ]);
+        $apm->persist();
+        echo $apm->getTraceId().PHP_EOL;
     }
 }
