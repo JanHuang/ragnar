@@ -131,10 +131,10 @@ class Ragnar implements RagnarInterface
      * @param $file
      * @param $line
      * @param $tag
-     * @param $content
+     * @param array $content
      * @return $this
      */
-    public function log($type, $file, $line, $tag, $content)
+    public function log($type, $file, $line, $tag, array $content)
     {
         if ($type >= $this->level) {
             $this->logs[] = [
@@ -185,10 +185,10 @@ class Ragnar implements RagnarInterface
     }
 
     /**
-     * @param string $msg
+     * @param array $content
      * @return $this
      */
-    public function digLogEnd($msg = '')
+    public function digLogEnd(array $content = [])
     {
         $startPoint = array_pop($this->points);
 
@@ -200,7 +200,7 @@ class Ragnar implements RagnarInterface
                 "p" => $startPoint["file"],
                 "l" => $startPoint["line"],
                 "c" => bcsub(microtime(true), $startPoint["start"], 4),
-                "m" => is_array($msg) ? $msg : [$msg],
+                "m" => $content,
                 "r" => $startPoint["rpcid"],
             ];
 
